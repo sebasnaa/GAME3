@@ -74,9 +74,9 @@ public class AgenteEntrenamiento extends AbstractPlayer {
 		// Estado actual
 		int infectados = Controlador.numeroInfectados(stateObs);
 		double jugadorChungo = Controlador.distanciaEuclideaJugadorChungo(stateObs);
-		double jugadorInfectadoCercano = Controlador.getDistanciaJugadorNPCCercano(stateObs);
 		
-		ESTADOS estadoActual = Controlador.getEstado(stateObs,Controlador.getMapa(stateObs), infectados,jugadorChungo,jugadorInfectadoCercano);
+		
+		ESTADOS estadoActual = Controlador.getEstado(stateObs,Controlador.getMapa(stateObs), infectados,jugadorChungo);
 		estadoActual.incrementa();
 		System.out.println("Estado actual: " + estadoActual.toString());
 
@@ -105,7 +105,7 @@ public class AgenteEntrenamiento extends AbstractPlayer {
 		System.out.println(" Accion elegida: " + action.toString());
 
 		// Calcular el estado siguiente
-		ESTADOS estadoSiguiente = Controlador.getEstadoFuturo(stateObs, action, infectados,jugadorChungo,jugadorInfectadoCercano);
+		ESTADOS estadoSiguiente = Controlador.getEstadoFuturo(stateObs, action, infectados,jugadorChungo);
 	
 		System.out.println("Proximo estado " + estadoSiguiente.toString());
 
@@ -115,8 +115,8 @@ public class AgenteEntrenamiento extends AbstractPlayer {
 
 //		double maxQ = maxQ(estadoSiguiente);
 		double maxQ = maxQ(estadoActual);
-//		double r = StateManager.R.get(new EstadoAccion(estadoActual, action));
-		double r = Controlador.R.get(new EstadoAccion(estadoSiguiente, action));
+		double r = Controlador.R.get(new EstadoAccion(estadoActual, action));
+//		double r = Controlador.R.get(new EstadoAccion(estadoSiguiente, action));
 		double value = q + alpha * (r + gamma * maxQ - q);
 
 		// Se modifica el valor de la tablaQ
@@ -126,7 +126,8 @@ public class AgenteEntrenamiento extends AbstractPlayer {
 
 		// if(stateObs.isGameOver()) this.saveQTable(); //Guardamos la tablaQ si termina
 
-		return action;
+//		return action;
+		return ACTIONS.ACTION_RIGHT;
 	}
 
 	private double maxQ(ESTADOS s) {

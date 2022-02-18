@@ -44,9 +44,9 @@ public class AgenteTest extends AbstractPlayer {
 
 		int infectados = Controlador.numeroInfectados(stateObs);
 		double jugadorChungo = Controlador.distanciaEuclideaJugadorChungo(stateObs);
-		double jugadorInfectadoCercano = Controlador.getDistanciaJugadorNPCCercano(stateObs);
+		
 
-		ESTADOS estadoActual = Controlador.getEstado(stateObs,Controlador.getMapa(stateObs), infectados,jugadorChungo,jugadorInfectadoCercano);
+		ESTADOS estadoActual = Controlador.getEstado(stateObs,Controlador.getMapa(stateObs), infectados,jugadorChungo);
 		estadoActual.incrementa();
 		System.out.println("Estado actual: " + estadoActual.toString());
 

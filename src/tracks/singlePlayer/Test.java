@@ -43,18 +43,18 @@ public class Test {
 		
 		Controlador controlador;
 //
-		boolean training = true; // Modo entrenamiento, crea una nueva tabla Q y juega M partidas aleatorias
+		boolean training = false; // Modo entrenamiento, crea una nueva tabla Q y juega M partidas aleatorias
 		boolean probarNiveles = false;
-		boolean probarNivel = false;
+		boolean probarNivel = true;
 		boolean grafica = false;
 
 		if (training) // Crea la tabla Q a random y juega partidas con acciones aleatorias y sobre la
 						// tablaQ
 		{
-			visuals = true;
+			visuals = false;
 			boolean isTablaQRandom = true;
 			controlador = new Controlador(isTablaQRandom);
-			Controlador.numPartidasEntrenamiento = 1;
+			Controlador.numPartidasEntrenamiento = 200;
 
 			double[] Y = null;
 			double[] X = null;

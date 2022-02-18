@@ -26,8 +26,8 @@ public class Controlador {
 	/* Estados definidos */
 	public static enum ESTADOS {
 
-		POSICION_PERFECTA(0), POSICION_SEGURA(0), POSICION_NO_SEGURA(0), TRANSICION_POSITIVA(0), TRANSICION_NEGATIVA(0),
-		REDUCE_DIST_INFECTADO(0), AUMENTA_DIST_INFECTADO(0), REDUCE_INFECTADOS(0), INFECTADO_CERCA(0), NIL(0);
+		HUECO_DERECHA(0), HUECO_IZQUIERDA(0), HUECO_ABAJO(0), HUECO_ARRIBA(0), CURACION_POSIBLE(0), ESTADO_INSEGURO(0),ESTADO_SEGURO(0),
+		NIL(0);
 
 		private int contador; // Determina el numero de veces que se encuentra en un estado
 
@@ -106,21 +106,18 @@ public class Controlador {
 			}
 		}
 
-		for (ACTIONS a : ACCIONES) {
-			R.put(new EstadoAccion(ESTADOS.POSICION_PERFECTA, a), 100.0);
-			R.put(new EstadoAccion(ESTADOS.POSICION_SEGURA, a), 20.0);
-			R.put(new EstadoAccion(ESTADOS.POSICION_NO_SEGURA, a), -30.0);
-			R.put(new EstadoAccion(ESTADOS.TRANSICION_POSITIVA, a), 50.0);
-			R.put(new EstadoAccion(ESTADOS.TRANSICION_NEGATIVA, a), -300.0);
-			R.put(new EstadoAccion(ESTADOS.REDUCE_DIST_INFECTADO, a), 20.0);
-			R.put(new EstadoAccion(ESTADOS.AUMENTA_DIST_INFECTADO, a), -20.0);
-		}
+		R.put(new EstadoAccion(ESTADOS.HUECO_ABAJO, ACTIONS.ACTION_DOWN), 50.0);
+		R.put(new EstadoAccion(ESTADOS.HUECO_ARRIBA, ACTIONS.ACTION_UP), 50.0);
+		R.put(new EstadoAccion(ESTADOS.HUECO_DERECHA, ACTIONS.ACTION_RIGHT), 50.0);
+		R.put(new EstadoAccion(ESTADOS.HUECO_IZQUIERDA, ACTIONS.ACTION_LEFT), 50.0);
 
-		R.put(new EstadoAccion(ESTADOS.INFECTADO_CERCA, ACTIONS.ACTION_USE), 200.0);
-		R.put(new EstadoAccion(ESTADOS.INFECTADO_CERCA, ACTIONS.ACTION_DOWN), -10.0);
-		R.put(new EstadoAccion(ESTADOS.INFECTADO_CERCA, ACTIONS.ACTION_UP), -10.0);
-		R.put(new EstadoAccion(ESTADOS.INFECTADO_CERCA, ACTIONS.ACTION_RIGHT), -10.0);
-		R.put(new EstadoAccion(ESTADOS.INFECTADO_CERCA, ACTIONS.ACTION_LEFT), -10.0);
+		R.put(new EstadoAccion(ESTADOS.CURACION_POSIBLE, ACTIONS.ACTION_USE), 50.0);
+
+		R.put(new EstadoAccion(ESTADOS.ESTADO_INSEGURO, ACTIONS.ACTION_DOWN), -10.0);
+		R.put(new EstadoAccion(ESTADOS.ESTADO_INSEGURO, ACTIONS.ACTION_UP), -10.0);
+		R.put(new EstadoAccion(ESTADOS.ESTADO_INSEGURO, ACTIONS.ACTION_LEFT), -10.0);
+		R.put(new EstadoAccion(ESTADOS.ESTADO_INSEGURO, ACTIONS.ACTION_RIGHT), -10.0);
+
 	}
 
 	/*
@@ -286,11 +283,11 @@ public class Controlador {
 					} else if (so.getObservationGrid()[i][j].get(0).itype == 1) {
 						res[i][j] = 'J';
 					} else if (so.getObservationGrid()[i][j].get(0).itype == 4) {
-						res[i][j] = 'E';
+						res[i][j] = 'I';
 					} else if (so.getObservationGrid()[i][j].get(0).itype == 6) {
 						res[i][j] = 'S';
 					} else if (so.getObservationGrid()[i][j].get(0).itype == 7) {
-						res[i][j] = 'P';
+						res[i][j] = 'E';
 					} else {
 						res[i][j] = '-';
 					}
@@ -306,62 +303,122 @@ public class Controlador {
 	}
 
 	public static ESTADOS getEstadoFuturo(StateObservation obs, ACTIONS action, int numeroInfectados,
-			double distanciaJugadortoChungo, double distanciaMenorJugadorInfectado) {
+			double distanciaJugadortoChungo) {
 
 		obs.advance(action);
-		return getEstado(obs, getMapa(obs), numeroInfectados, distanciaJugadortoChungo, distanciaMenorJugadorInfectado);
+		return getEstado(obs, getMapa(obs), numeroInfectados, distanciaJugadortoChungo);
 	}
 
 	public static ESTADOS getEstado(StateObservation obs, char[][] mapaObstaculos, int numeroInfectados,
-			double distanciaJugadortoChungo, double distanciaMenorJugadorInfectado) {
+			double distanciaJugadortoChungo) {
 
 		ESTADOS estadoFinal;
 
 		// num de infectados actuales tras la transicion
 		int numeroInfectadosActuales = numeroInfectados(obs);
-		double distanciaInfectadoActual = getDistanciaJugadorNPCCercano(obs);
-		double distanciatoChungo = getDistanciaJugadorNPCCercano(obs);
+		double distanciatoChungo = distanciaEuclideaJugadorChungo(obs);
 
-		if (numeroInfectadosActuales < numeroInfectados) {
-			//if(sentido es igual al infectado then 
-			if (distanciaInfectadoActual < 5) {
-				return ESTADOS.INFECTADO_CERCA;
-			}
-			return ESTADOS.TRANSICION_POSITIVA;
-		} else {
-			if (numeroInfectadosActuales > numeroInfectados) {
-				if (distanciaInfectadoActual < 5) {
-					return ESTADOS.INFECTADO_CERCA;
-				}
-				return ESTADOS.TRANSICION_NEGATIVA;
-			} else {
+		int accionDesplazamiento = getDesplazamientoNecesariotoNPC(obs);
 
-				if (distanciaInfectadoActual < distanciaMenorJugadorInfectado && distanciatoChungo > 3) {
-					// ha reducido la dist entre infectado y jugador y mantiene alejado al chungo
-					if (distanciaInfectadoActual < 5) {
-						return ESTADOS.INFECTADO_CERCA;
+		// retorno 0 -> Desplazamiento horizontal positivo
+		// retorno 1 -> Desplazamiento horizontal negativo
+		// retorno 2 -> Desplazamiento vertical positivo
+		// retorno 3 -> Desplazamiento vertical negativo
+		// retorno 4 -> misma posicion
+
+		char mapa[][] = getMapa(obs);
+		int posicionJugador[] = getPosicionJugador(obs);
+		int xJugador = posicionJugador[0];
+		int yJugador = posicionJugador[1];
+
+		int posicionInfectado[] = getPosicionInfectado(obs);
+		int xInfectado = posicionInfectado[0];
+		int yInfectado = posicionInfectado[1];
+		
+		int distanciaSeguridad = 2;
+
+		if (numeroInfectados(obs) > 0 ) {
+			if (xJugador < xInfectado && distanciaEuclideaJugadorChungo(obs) >= distanciaSeguridad) {
+				if (mapa[xJugador + 1][yJugador] != '#') {
+					if (mapa[xJugador + 1][yJugador] == 'I') {
+						return ESTADOS.CURACION_POSIBLE;
 					}
-					return ESTADOS.TRANSICION_POSITIVA;
+					return ESTADOS.HUECO_DERECHA;
 				}
-
-				if (distanciaInfectadoActual >= distanciaMenorJugadorInfectado || distanciatoChungo < 3) {
-					if (distanciaInfectadoActual < 5) {
-						return ESTADOS.INFECTADO_CERCA;
+			} else if (xJugador > xInfectado && distanciaEuclideaJugadorChungo(obs) >= distanciaSeguridad) {
+				if (mapa[xJugador - 1][yJugador] != '#') {
+					if (mapa[xJugador - 1][yJugador] == 'I') {
+						return ESTADOS.CURACION_POSIBLE;
 					}
-					return ESTADOS.TRANSICION_NEGATIVA;
+					return ESTADOS.HUECO_IZQUIERDA;
+				}
+			}
+
+			if (yJugador < yInfectado && distanciaEuclideaJugadorChungo(obs) >= distanciaSeguridad) {
+				if (mapa[xJugador][yJugador+1] != '#') {
+					if (mapa[xJugador][yJugador+1] == 'I') {
+						return ESTADOS.CURACION_POSIBLE;
+					}
+					return ESTADOS.HUECO_ABAJO;
+				}
+			} else if (yJugador > yInfectado && distanciaEuclideaJugadorChungo(obs) >= distanciaSeguridad) {
+				if (mapa[xJugador][yJugador-1] != '#') {
+					if (mapa[xJugador][yJugador-1] == 'I') {
+						return ESTADOS.CURACION_POSIBLE;
+					}
+					return ESTADOS.HUECO_ARRIBA;
 				}
 
 			}
 
+		}
+		
+		if(numeroInfectados(obs) == 0 && distanciaEuclideaJugadorChungo(obs) < distanciaSeguridad) {
+			return ESTADOS.ESTADO_INSEGURO;
+		}
+		 if(numeroInfectados(obs) == 0 && distanciaEuclideaJugadorChungo(obs) > distanciaSeguridad){
+			return ESTADOS.ESTADO_SEGURO;
 		}
 
 		return ESTADOS.NIL;
 
 	}
 
-	public static double getDistanciaJugadorNPCCercano(StateObservation so) {
+	public static int[] getPosicionJugador(StateObservation so) {
 
-		double dist = Double.MAX_VALUE;
+		Vector2d pos = so.getAvatarPosition();
+		int posicionJugador[] = new int[2];
+		posicionJugador[0] = (int) (pos.x / 32);
+		posicionJugador[1] = (int) (pos.y / 32);
+		System.out.println(posicionJugador[0] + " " + posicionJugador[1] + " jugador ");
+		return posicionJugador;
+	}
+
+	public static int[] getPosicionInfectado(StateObservation so) {
+
+		ArrayList<Observation>[] pos = so.getNPCPositions(so.getAvatarPosition());
+		int posicionNPC[] = new int[2];
+		if (pos[0].size() > 0) {
+			Vector2d aux = pos[0].get(0).position;
+			posicionNPC[0] = (int) (aux.x / 32);
+			posicionNPC[1] = (int) (aux.y / 32);
+
+		}
+
+		System.out.println(posicionNPC[0] + " " + posicionNPC[1] + " infectado ");
+		return posicionNPC;
+	}
+
+	public static int getDesplazamientoNecesariotoNPC(StateObservation so) {
+
+		// determinamos la posicion del infectado mas cercano y comprobamos si nuestro
+		// jugador debe realizar un desplazamiento vertical o horizontal
+
+		// retorno 0 -> Desplazamiento horizontal positivo
+		// retorno 1 -> Desplazamiento horizontal negativo
+		// retorno 2 -> Desplazamiento vertical positivo
+		// retorno 3 -> Desplazamiento vertical negativo
+		// retorno 4 -> misma posicion
 
 		Vector2d pos = so.getAvatarPosition();
 		double posicionJugador[] = new double[2];
@@ -371,23 +428,31 @@ public class Controlador {
 
 		ArrayList<Observation>[] posiciones = so.getNPCPositions(pos);
 
+		// nose si 2 o 1
 		if (posiciones[0].size() > 0) {
 			Vector2d aux = posiciones[0].get(0).position;
 			posicionNPC[0] = aux.x / 16;
 			posicionNPC[1] = aux.y / 16;
 
-			double diferenciaX = posicionJugador[0] - posicionNPC[0];
-			double diferenciaY = posicionJugador[1] - posicionNPC[1];
+			if (posicionJugador[1] < posicionNPC[1] - 2) {
+				return 2;
+			}
+			if (posicionJugador[1] - 2 > posicionNPC[1]) {
+				return 3;
+			}
 
-			dist = Math.sqrt(Math.pow(diferenciaX, 2) + Math.pow(diferenciaY, 2));
+			if (posicionJugador[0] < posicionNPC[0] - 2) {
+				return 0;
+			}
+			if (posicionJugador[0] - 2 > posicionNPC[0]) {
+				return 1;
+			}
 
-			System.out.println(dist + " Distancia menor");
-		} else {
-			dist = 1000000000000.0;
+			return 4;
+
 		}
-		
+		return -1;
 
-		return dist;
 	}
 
 	public static double[] getPosicionJugadorMod(StateObservation so) {
@@ -538,7 +603,6 @@ public class Controlador {
 		for (int i = 0; i < numFil; i++) {
 			for (int j = 0; j < numCol; j++) {
 				if (so.getObservationGrid()[j][i].size() != 0) {
-
 					System.out.print(so.getObservationGrid()[j][i].get(0).itype);
 				} else {
 					System.out.print('-');
